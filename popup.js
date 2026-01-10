@@ -3,11 +3,54 @@ const defaultPet = {
     hunger: 50,
     happiness: 100,
     statusMessage: "feed me!",
-    growthStage: "baby",
+    growthStage: "egg",
     lastChecked: Date.now(),
     lastCommitCheck: Date.now(),
     totalCommits: 0
 };
+
+function determineGrowthStage(pet) {
+    const previousStage = pet.growthStage;
+    if ((pet.hunger === 0 || pet.totalCommits >= 300) && pet.growthStage !== "dead") {
+        pet.growthStage = "dead";
+    } else if (pet.totalCommits >= 150 && pet.growthStage === "baby") {
+        pet.growthStage = "adult";
+    } else if (pet.totalCommits >= 50 && pet.growthStage === "egg") {
+        pet.growthStage = "baby";
+    }
+
+    if (previousStage !== pet.growthStage) {
+        updateSpriteAndMessage();
+        console.log(`growth stage changed from ${previousStage} to ${pet.growthStage}`);
+    }
+}
+
+// change sprite and status message accordingly
+function updateSpriteAndMessage() {
+    const spriteElement = document.getElementById('sprite');
+    switch (pet.growthStage) {
+        case "egg":
+            spriteElement.src = "images/egg.png";
+            pet.statusMessage = "waiting to hatch...";
+            break;
+        case "baby":
+            spriteElement.src = "images/babykitty.png";
+            pet.statusMessage = "goo goo ga ga!";
+            break;
+        case "adult":
+            spriteElement.src = "images/normalkitty.png";
+            pet.statusMessage = "i feel older...";
+            break;
+        case "dead":
+            spriteElement.src = "images/deadkitty.png";
+            pet.statusMessage = "rip...";
+            break;
+        default:
+            console.warn(`Unknown growth stage: ${pet.growthStage}`);
+            break;
+    }
+    console.log(`updated sprite to ${pet.growthStage}`);
+}
 
 let pet = null;
 
@@ -20,14 +63,16 @@ document.addEventListener("DOMContentLoaded", () => {
 function initializePet() {
     chrome.storage.local.get(["pet"], async (result) => {
         if (!result.pet) {
-            pet = defaultPet;
+            pet = { ...defaultPet };
             console.log("created new pet!");
         } else {
             pet = result.pet;
             console.log("loaded existing pet");
         }
+        console.log("total commits: " + pet.totalCommits);
         applyDecay();
         await checkCommitsAndFeed();
+        determineGrowthStage(pet);
         chrome.storage.local.set({ pet: pet }, () => {
             updateUI();
         });
@@ -58,6 +103,10 @@ function applyDecay() {
 }
 
 function updateStatus() {
+    if (pet.growthStage === "dead") {
+        pet.statusMessage = "rip...";
+        return;
+    }
     // make status change based on hunger
     if (pet.hunger >= 80) {
         pet.statusMessage = "i'm stuffed!";
@@ -126,6 +175,7 @@ const hungerPerCommit = 5;
 // base happiness on streak, come back to this later
 
 function feed(newCommits) {
+    if (pet.growthStage === "dead") return;
     if (newCommits <= 0) return;
 
     pet.hunger = Math.min(100, pet.hunger + (hungerPerCommit * newCommits));
