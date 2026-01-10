@@ -15,7 +15,8 @@ function determineGrowthStage(pet) {
         pet.growthStage = "dead";
     } else if (pet.totalCommits >= 150 && pet.growthStage === "baby") {
         pet.growthStage = "adult";
-    } else if (pet.totalCommits >= 50 && pet.growthStage === "egg") {
+        // temporarily set to 1 for testing
+    } else if (pet.totalCommits >= 1 && pet.growthStage === "egg") {
         pet.growthStage = "baby";
     }
 
@@ -70,6 +71,7 @@ function initializePet() {
             console.log("loaded existing pet");
         }
         console.log("total commits: " + pet.totalCommits);
+        console.log("pet growth stage: " + pet.growthStage);
         applyDecay();
         await checkCommitsAndFeed();
         determineGrowthStage(pet);
@@ -107,15 +109,24 @@ function updateStatus() {
         pet.statusMessage = "rip...";
         return;
     }
-    // make status change based on hunger
-    if (pet.hunger >= 80) {
-        pet.statusMessage = "i'm stuffed!";
-    } else if (pet.hunger >= 50) {
-        pet.statusMessage = "i'm getting peckish...";
-    } else if (pet.hunger >= 20) {
-        pet.statusMessage = "feed me!!";
-    } else {
-        pet.statusMessage = "i'm starving!!!";
+    
+    // Don't override status messages for recent growth stage changes
+    // Only update status based on hunger for egg stage or if no special message is set
+    if (pet.growthStage === "egg" || 
+        (pet.statusMessage !== "goo goo ga ga!" && 
+        pet.statusMessage !== "i feel older..." && 
+        pet.statusMessage !== "waiting to hatch...")) {
+        
+        // make status change based on hunger
+        if (pet.hunger >= 80) {
+            pet.statusMessage = "i'm stuffed!";
+        } else if (pet.hunger >= 50) {
+            pet.statusMessage = "i'm getting peckish...";
+        } else if (pet.hunger >= 20) {
+            pet.statusMessage = "feed me!!";
+        } else {
+            pet.statusMessage = "i'm starving!!!";
+        }
     }
     console.log(`updated status: ${pet.statusMessage}`);
 }
@@ -199,4 +210,15 @@ async function checkCommitsAndFeed() {
         pet.statusMessage = "error fetching commits";
     }
 }
+
+// for testing: reset extension data
+function resetExtension() {
+    chrome.storage.local.clear(() => {
+        console.log("Extension data cleared!");
+        location.reload();
+    });
+}
+
+// uncomment the line below to reset on next popup open
+// resetExtension();
 
