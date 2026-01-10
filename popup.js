@@ -13,44 +13,57 @@ function determineGrowthStage(pet) {
     const previousStage = pet.growthStage;
     if ((pet.hunger === 0 || pet.totalCommits >= 300) && pet.growthStage !== "dead") {
         pet.growthStage = "dead";
-    } else if (pet.totalCommits >= 150 && pet.growthStage === "baby") {
+    } else if (pet.totalCommits >= 100 && pet.growthStage === "baby") {
         pet.growthStage = "adult";
-        // temporarily set to 1 for testing
-    } else if (pet.totalCommits >= 1 && pet.growthStage === "egg") {
+    } else if (pet.totalCommits >= 15 && pet.growthStage === "egg") {
         pet.growthStage = "baby";
     }
 
     if (previousStage !== pet.growthStage) {
-        updateSpriteAndMessage();
+        setGrowthStageMessage();
         console.log(`growth stage changed from ${previousStage} to ${pet.growthStage}`);
     }
 }
 
-// change sprite and status message accordingly
-function updateSpriteAndMessage() {
+// update sprite based on growth stage
+function updateSprite() {
     const spriteElement = document.getElementById('sprite');
     switch (pet.growthStage) {
         case "egg":
             spriteElement.src = "images/egg.png";
-            pet.statusMessage = "waiting to hatch...";
             break;
         case "baby":
             spriteElement.src = "images/babykitty.png";
-            pet.statusMessage = "goo goo ga ga!";
             break;
         case "adult":
             spriteElement.src = "images/normalkitty.png";
-            pet.statusMessage = "i feel older...";
             break;
         case "dead":
             spriteElement.src = "images/deadkitty.png";
-            pet.statusMessage = "rip...";
             break;
         default:
             console.warn(`Unknown growth stage: ${pet.growthStage}`);
             break;
     }
     console.log(`updated sprite to ${pet.growthStage}`);
+}
+
+// set growth stage status messages
+function setGrowthStageMessage() {
+    switch (pet.growthStage) {
+        case "egg":
+            pet.statusMessage = "waiting to hatch...";
+            break;
+        case "baby":
+            pet.statusMessage = "goo goo ga ga!";
+            break;
+        case "adult":
+            pet.statusMessage = "i feel older...";
+            break;
+        case "dead":
+            pet.statusMessage = "rip...";
+            break;
+    }
 }
 
 let pet = null;
@@ -72,11 +85,15 @@ function initializePet() {
         }
         console.log("total commits: " + pet.totalCommits);
         console.log("pet growth stage: " + pet.growthStage);
+        
         applyDecay();
         await checkCommitsAndFeed();
         determineGrowthStage(pet);
+        updateStatus(); // Update status after growth stage determination
+        
         chrome.storage.local.set({ pet: pet }, () => {
-            updateUI();
+            updateUI(); // This will now update sprite, progress bars, and status
+            console.log("pet state saved and UI updated");
         });
     });
     console.log("initialized pet");
@@ -100,8 +117,6 @@ function applyDecay() {
     } else {
         console.log(`no decay applied: only ${Math.floor(minutesElapsed)} minutes elapsed`);
     }
-
-    updateStatus();
 }
 
 function updateStatus() {
@@ -110,14 +125,10 @@ function updateStatus() {
         return;
     }
     
-    // Don't override status messages for recent growth stage changes
-    // Only update status based on hunger for egg stage or if no special message is set
-    if (pet.growthStage === "egg" || 
-        (pet.statusMessage !== "goo goo ga ga!" && 
-        pet.statusMessage !== "i feel older..." && 
-        pet.statusMessage !== "waiting to hatch...")) {
-        
-        // make status change based on hunger
+    // Only update hunger-based status for egg stage
+    // For other stages, preserve the growth stage messages unless the pet is very hungry
+    if (pet.growthStage === "egg") {
+        // make status change based on hunger for egg stage
         if (pet.hunger >= 80) {
             pet.statusMessage = "i'm stuffed!";
         } else if (pet.hunger >= 50) {
@@ -127,15 +138,24 @@ function updateStatus() {
         } else {
             pet.statusMessage = "i'm starving!!!";
         }
+    } else {
+        // For baby and adult, only override with urgent hunger messages
+        if (pet.hunger < 20) {
+            pet.statusMessage = "i'm starving!!!";
+        } else if (pet.hunger < 10) {
+            pet.statusMessage = "feed me!!";
+        }
+        // Otherwise, keep the growth stage message
     }
     console.log(`updated status: ${pet.statusMessage}`);
 }
 
-// update progress bars and status message
+// update progress bars, status message, and sprite
 function updateUI() {
     document.getElementById('hungerProgress').value = pet.hunger;
     document.getElementById('happinessProgress').value = pet.happiness;
     document.getElementById('statusMessage').textContent = pet.statusMessage;
+    updateSprite(); // Always update sprite when refreshing UI
     console.log("UI updated");
 }
 
@@ -194,7 +214,6 @@ function feed(newCommits) {
 
     pet.totalCommits += newCommits;
     console.log(`fed pet: +${hungerPerCommit * newCommits} hunger from ${newCommits} new commits`);
-    updateStatus();
 }
 
 async function checkCommitsAndFeed() {
@@ -204,7 +223,6 @@ async function checkCommitsAndFeed() {
 
         const newCommits = countNewCommits(events);
         feed(newCommits);
-        updateStatus();
     } catch (error) {
         console.error('Error checking commits and feeding pet:', error);
         pet.statusMessage = "error fetching commits";
@@ -214,7 +232,7 @@ async function checkCommitsAndFeed() {
 // for testing: reset extension data
 function resetExtension() {
     chrome.storage.local.clear(() => {
-        console.log("Extension data cleared!");
+        console.log("extension data cleared!");
         location.reload();
     });
 }
