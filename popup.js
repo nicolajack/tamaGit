@@ -78,11 +78,10 @@ async function fetchGitCommits() {
     const response = await fetch(`https://api.github.com/users/${gitUser}/events`);
     if (response.ok) {
         console.log("fetched git commits");
-        console.log(response);
         return response.json();
     }
     else {
-        console.error('error fetching git commits: ', response.statusText);
+        console.error('error fetching git commits: ', response);
     }
 }
 
@@ -93,7 +92,6 @@ function countNewCommits(events){
         
         // Safety check: ensure event has payload
         if (!event.payload) {
-            console.log("Skipping event with missing payload:", event);
             continue;
         }
 
@@ -108,7 +106,6 @@ function countNewCommits(events){
         } else {
             // For PushEvents without commits array, assume 1 commit
             // This is a fallback for GitHub API responses that don't include commits detail
-            console.log("PushEvent without commits array, assuming 1 commit:", event);
             if (eventTime > pet.lastCommitCheck) {
                 newCommits += 1;
             }

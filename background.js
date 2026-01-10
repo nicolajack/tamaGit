@@ -6,6 +6,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "decayAlarm") {
         applyBackgroundDecay();
     }
+    console.log(`Alarm triggered: ${alarm.name}`);
 });
 
 function applyBackgroundDecay() {
