@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "tamagit",
+    "description": "a simple extension that allows users to raise a virtual pet with their git commits",
+    "version": "1.0",
+    "icons": {
+        "16": "images/placeholdertamagit.png"
+    },
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "storage",
+        "alarms"
+    ]
+}
