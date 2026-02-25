@@ -9,6 +9,28 @@ const defaultPet = {
     totalCommits: 0
 };
 
+// decide which screen to show
+function showScreen(screen) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('petScreen').style.display = 'none';
+    document.getElementById(screen).style.display = 'flex';
+}
+
+function handleLogin() {
+    const input = document.getElementById('usernameInput');
+    const username = input.value.trim();
+    if (!username) {
+        input.focus();
+        return;
+    }
+    chrome.storage.local.set({ gitUser: username }, () => {
+        gitUser = username;
+        showScreen('petScreen');
+        initializePet();
+        console.log(`logged in as ${username}`);
+    });
+}
+
 function determineGrowthStage(pet) {
     const previousStage = pet.growthStage;
     if ((pet.hunger === 0 || pet.totalCommits >= 300) && pet.growthStage !== "dead") {
@@ -69,9 +91,22 @@ function setGrowthStageMessage() {
 let pet = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-    initializePet();
+    // if user exists show pet screen else let login
+    chrome.storage.local.get(["gitUser"], (result) => {
+        if (!result.gitUser) {
+            showScreen('loginScreen');
+
+            document.getElementById('loginBtn').addEventListener('click', handleLogin);
+            document.getElementById('usernameInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+        } else {
+            gitUser = result.gitUser;
+            showScreen('petScreen');
+            initializePet();
+        }
+    });
     console.log("popup loaded");
-    console.log(Date.now().toString());
 });
 
 function initializePet() {
@@ -89,10 +124,10 @@ function initializePet() {
         applyDecay();
         await checkCommitsAndFeed();
         determineGrowthStage(pet);
-        updateStatus(); // Update status after growth stage determination
+        updateStatus(); 
         
         chrome.storage.local.set({ pet: pet }, () => {
-            updateUI(); // This will now update sprite, progress bars, and status
+            updateUI();
             console.log("pet state saved and UI updated");
         });
     });
@@ -105,9 +140,7 @@ function applyDecay() {
     const timeElapsed = currentTime - pet.lastChecked;
     const minutesElapsed = timeElapsed / (1000 * 60);
     // decreasing 2 hunger per hour = 2/60 = 0.033... hunger per minute
-    // Using 15-minute intervals to prevent gaming the system
-    const intervalsElapsed = Math.floor(minutesElapsed / 15); // 15-minute intervals
-    // SETTING TO HIGH NUMBER FOR TESTING
+    const intervalsElapsed = Math.floor(minutesElapsed / 15);
     const hungerDecrease = intervalsElapsed * 0.5; // 0.5 hunger per 15 minutes (2 per hour)
     
     if (hungerDecrease > 0) {
@@ -139,13 +172,11 @@ function updateStatus() {
             pet.statusMessage = "i'm starving!!!";
         }
     } else {
-        // For baby and adult, only override with urgent hunger messages
         if (pet.hunger < 20) {
             pet.statusMessage = "i'm starving!!!";
         } else if (pet.hunger < 10) {
             pet.statusMessage = "feed me!!";
         }
-        // Otherwise, keep the growth stage message
     }
     console.log(`updated status: ${pet.statusMessage}`);
 }
@@ -154,13 +185,21 @@ function updateStatus() {
 function updateUI() {
     document.getElementById('hungerProgress').value = pet.hunger;
     document.getElementById('happinessProgress').value = pet.happiness;
-    document.getElementById('statusMessage').textContent = pet.statusMessage;
-    updateSprite(); // Always update sprite when refreshing UI
+
+    const statusEl = document.getElementById('statusMessage');
+    if (pet.growthStage === "dead") {
+        statusEl.innerHTML = 'rip... <button id="resetBtn">try again?</button>';
+        document.getElementById('resetBtn').addEventListener('click', resetExtension);
+    } else {
+        statusEl.textContent = pet.statusMessage;
+    }
+
+    updateSprite();
     console.log("UI updated");
 }
 
-// hardcoded git user for now
-const gitUser = "nicolajack";
+// git user — loaded from storage
+let gitUser = null;
 
 // fetch git commits and update pet status accordingly
 async function fetchGitCommits() {
@@ -179,20 +218,16 @@ function countNewCommits(events){
     for (const event of events) {
         if (event.type != "PushEvent") continue;
         
-        // Safety check: ensure event has payload
         if (!event.payload) {
             continue;
         }
 
         const eventTime = new Date(event.created_at).getTime();
         
-        // Only count commits that are newer than our last check
         if (eventTime > pet.lastCommitCheck) {
-            // Check if commits array exists in payload
             if (event.payload.commits && Array.isArray(event.payload.commits)) {
                 newCommits += event.payload.commits.length;
             } else {
-                // For PushEvents without commits array, assume 1 commit
                 newCommits += 1;
             }
         }
@@ -229,11 +264,19 @@ async function checkCommitsAndFeed() {
     }
 }
 
-// for testing: reset extension data
+// reset pet to egg stage (used when pet dies)
 function resetExtension() {
-    chrome.storage.local.clear(() => {
-        console.log("extension data cleared!");
-        location.reload();
+    pet.hunger = 50;
+    pet.happiness = 100;
+    pet.growthStage = "egg";
+    pet.totalCommits = 0;
+    pet.lastChecked = Date.now();
+    pet.lastCommitCheck = Date.now();
+    pet.statusMessage = "waiting to hatch...";
+
+    chrome.storage.local.set({ pet: pet }, () => {
+        updateUI();
+        console.log("pet reset to egg!");
     });
 }
 

@@ -7,17 +7,32 @@
     <title>tamagit</title>
 </head>
 <body>
-    <h1 id="title">tamagit!</h1>
-    <div id="spriteHolder">
-        <img id="sprite" src="images/egg.png" alt="tamagit icon">
+    <!-- login screen -->
+    <div id="loginScreen" style="display: none;">
+        <h1 id="loginTitle">tamagit!</h1>
+        <div id="loginContent">
+            <img id="loginSprite" src="images/egg.png" alt="tamagit egg">
+            <p id="loginPrompt">enter your github username to begin!</p>
+            <input type="text" id="usernameInput" placeholder="github username" autocomplete="off" spellcheck="false">
+            <button id="loginBtn">start!</button>
+        </div>
     </div>
-    <div id="hungerBar">
-        <progress id="hungerProgress" max="100"></progress>
+
+    <!-- main screen -->
+    <div id="petScreen" style="display: none;">
+        <h1 id="title">tamagit!</h1>
+        <div id="spriteHolder">
+            <img id="sprite" src="images/egg.png" alt="tamagit icon">
+        </div>
+        <div id="hungerBar">
+            <progress id="hungerProgress" max="100"></progress>
+        </div>
+        <div id="happinessBar">
+            <progress id="happinessProgress" max="100"></progress>
+        </div>
+        <h2 id="statusMessage"></h2>
     </div>
-    <div id="happinessBar">
-        <progress id="happinessProgress" max="100"></progress>
-    </div>
-    <h2 id="statusMessage"></h2>
+
     <script src="popup.js"></script>
 </body>
 </html>
